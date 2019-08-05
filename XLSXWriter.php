@@ -43,12 +43,12 @@ class XLSXWriter
 			}
 		}
 	}
-	
+
 	public function setTempDir($dir)
 	{
 		$this->temp_dir = $dir;
 	}
-	
+
 	protected function tempFilename()
 	{
 		$temp_dir = is_null($this->temp_dir) ? sys_get_temp_dir() : $this->temp_dir;
@@ -137,11 +137,11 @@ class XLSXWriter
 		    'freeze_pane' => (isset($sheet_options['freeze_pane']))?$sheet_options['freeze_pane']:false,
 		);
 		$sheet = &$this->sheets[$sheet_name];
-		
+
 		$tabselected = count($this->sheets) == 1 ? 'true' : 'false';//only first sheet is selected
 		$max_cell=XLSXWriter::xlsCell(self::EXCEL_2007_MAX_ROW, self::EXCEL_2007_MAX_COL);//XFE1048577
 		$sheet->file_writer->write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n");
-		$sheet->file_writer->write('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">');	
+		$sheet->file_writer->write('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">');
 		$sheet->file_writer->write(  '<sheetPr filterMode="1">');
 		//
 		$sheet->file_writer->write(    '<outlinePr summaryBelow="1" summaryRight="1" />');
@@ -149,14 +149,14 @@ class XLSXWriter
 		$sheet->file_writer->write(  '</sheetPr>');
 		$sheet->max_cell_tag_start = $sheet->file_writer->ftell();
 		$sheet->file_writer->write('<dimension ref="A1:' . $max_cell . '"/>');
-		$sheet->max_cell_tag_end = $sheet->file_writer->ftell();		
+		$sheet->max_cell_tag_end = $sheet->file_writer->ftell();
 		$sheet->file_writer->write(  '<sheetViews>');
 		$sheet->file_writer->write(    '<sheetView colorId="64" defaultGridColor="true" rightToLeft="false" showFormulas="false" showGridLines="true" showOutlineSymbols="true" showRowColHeaders="true" showZeros="true" tabSelected="' . $tabselected . '" topLeftCell="A1" view="normal" windowProtection="false" workbookViewId="0" zoomScale="100" zoomScaleNormal="100" zoomScalePageLayoutView="100">');
 		if(!empty($sheet->freeze_pane)) {
 		    $cell = XLSXWriter::xlsCell($sheet->freeze_pane[0],$sheet->freeze_pane[1]);
 		    $ySplit = $sheet->freeze_pane[0];
 		    $xSplit = $sheet->freeze_pane[1];
-		    
+
     		$sheet->file_writer->write('<pane state="frozen" activePane="bottomRight" topLeftCell="'.$cell.'" ySplit="'.$ySplit.'" xSplit="'.$xSplit.'"/>');
     		$sheet->file_writer->write('<selection pane="topRight"/>');
     		$sheet->file_writer->write('<selection pane="bottomLeft"/>');
@@ -166,11 +166,11 @@ class XLSXWriter
 		    $sheet->file_writer->write(      '<selection activeCell="A1" activeCellId="0" pane="topLeft" sqref="A1"/>');
 		}
 		$sheet->file_writer->write(    '</sheetView>');
-		$sheet->file_writer->write(  '</sheetViews>');	
+		$sheet->file_writer->write(  '</sheetViews>');
 		$sheet->file_writer->write(  '<cols>');
 		$sheet->file_writer->write(    '<col collapsed="false" hidden="false" max="1025" min="1" style="0" width="11.5"/>');
 		$sheet->file_writer->write(  '</cols>');
-		
+
 		$sheet->file_writer->write(  '<sheetData>');
 	}
 
@@ -304,7 +304,7 @@ class XLSXWriter
 		}
 
 		$max_cell = self::xlsCell($sheet->row_count - 1, count($sheet->columns) - 1);
-		
+
 		if($sheet->autofilter) {
 		  $sheet->file_writer->write('<autoFilter ref="A1:'.$max_cell.'" />');
 		}
@@ -317,7 +317,7 @@ class XLSXWriter
 		$sheet->file_writer->write(    '</headerFooter>');
 		$sheet->file_writer->write('</worksheet>');
 
-		
+
 		$max_cell_tag = '<dimension ref="A1:' . $max_cell . '"/>';
 		$padding_length = $sheet->max_cell_tag_end - $sheet->max_cell_tag_start - strlen($max_cell_tag);
 		$sheet->file_writer->fseek($sheet->max_cell_tag_start);
@@ -325,7 +325,7 @@ class XLSXWriter
 		$sheet->file_writer->close();
 		$sheet->finalized=true;
 	}
-	
+
 	public function markMergedCell($sheet_name, $start_cell_row, $start_cell_column, $end_cell_row, $end_cell_column)
 	{
 		if (empty($sheet_name) || $this->sheets[$sheet_name]->finalized)
@@ -526,11 +526,24 @@ class XLSXWriter
 		$workbook_xml.='<fileVersion appName="Calc"/><workbookPr backupFile="false" showObjects="all" date1904="false"/><workbookProtection/>';
 		$workbook_xml.='<bookViews><workbookView activeTab="0" firstSheet="0" showHorizontalScroll="true" showSheetTabs="true" showVerticalScroll="true" tabRatio="212" windowHeight="8192" windowWidth="16384" xWindow="0" yWindow="0"/></bookViews>';
 		$workbook_xml.='<sheets>';
+    $defined_name = "";
 		foreach($this->sheets as $sheet_name=>$sheet) {
 			$workbook_xml.='<sheet name="'.self::xmlspecialchars($sheet->sheetname).'" sheetId="'.($i+1).'" state="visible" r:id="rId'.($i+2).'"/>';
+			if ($sheet->autofilter) {
+      	$filter_range = self::xlsCell(0, 0, true) . ':' . self::xlsCell(count($sheet->row_count) - 1, count($sheet->columns) - 1, true);
+        $defined_name .= '<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">\'' . self::xmlspecialchars($sheet->sheetname) . '\'!' . $filter_range . '</definedName>';
+  		}
 			$i++;
 		}
 		$workbook_xml.='</sheets>';
+
+		// AutoFilter
+    if (!empty($defined_name)) {
+    	$workbook_xml .= '<definedNames>';
+      $workbook_xml .= $defined_name;
+      $workbook_xml .= '</definedNames>';
+    }
+
 		$workbook_xml.='<calcPr iterateCount="100" refMode="A1" iterate="false" iterateDelta="0.001"/></workbook>';
 		return $workbook_xml;
 	}
@@ -580,14 +593,18 @@ class XLSXWriter
 	/*
 	 * @param $row_number int, zero based
 	 * @param $column_number int, zero based
+	 * @param $ref_absolute boolean
 	 * @return Cell label/coordinates, ex: A1, C3, AA42
 	 * */
-	public static function xlsCell($row_number, $column_number)
+	public static function xlsCell($row_number, $column_number, $ref_absolute = false)
 	{
 		$n = $column_number;
 		for($r = ""; $n >= 0; $n = intval($n / 26) - 1) {
 			$r = chr($n%26 + 0x41) . $r;
 		}
+		if ($ref_absolute) {
+    	$r = '$' . $r . '$';
+    }
 		return $r . ($row_number+1);
 	}
 	//------------------------------------------------------------------
